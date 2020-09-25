@@ -1,10 +1,10 @@
-use crate::domain::{Source, SourceRepository};
-use crate::infrastructure::ConnectionFactory;
+use crate::domain::Source;
+use crate::source::get_last_update_date;
 use clap::{crate_authors, crate_version, App, AppSettings, Arg, ArgMatches, SubCommand};
-use colored::*;
+use eyre::Result;
 use prettytable::Table;
 
-pub fn process<R: SourceRepository>(repo: &mut R, factory: ConnectionFactory) {
+pub fn process() -> Result<()> {
     let matches = App::new("notifier")
         .about("Search and notify when something is change in the your sources")
         .version(crate_version!())
@@ -24,6 +24,7 @@ pub fn process<R: SourceRepository>(repo: &mut R, factory: ConnectionFactory) {
                             Arg::with_name("type")
                                 .possible_values(&["rss", "html"])
                                 .takes_value(true),
+                            Arg::with_name("datetime_format").takes_value(true),
                             Arg::with_name("offset").takes_value(true),
                         ]),
                     App::new("list").about("List all sources"),
@@ -36,70 +37,68 @@ pub fn process<R: SourceRepository>(repo: &mut R, factory: ConnectionFactory) {
         .get_matches();
 
     match matches.subcommand() {
-        ("source", Some(matches)) => {
-            process_source(matches, repo);
-        }
+        ("source", Some(matches)) => process_source(matches),
         ("check", Some(_)) => {
-            match repo.list() {
-                Ok(sources) => {
-                    sources.for_each(|s| {
-                        let curr = factory.create(&s).unwrap().get_new().unwrap();
+            // todo here we have to create repository twice 'cause for now I can't figure out that I should do with borrow and mutable borrow here
+            for s in Source::repo()?.list()? {
+                let curr = get_last_update_date(s)?;
 
-                        if let Some(prev) = s.last_checked_at() {
-                            if prev < curr {
-                                println!("Source \"{}\" has updates!", s.name())
-                            }
-                        }
-
-                        if let Err(err) = repo.save(&s.with_last_checked_at(curr)) {
-                            eprintln!("Cannot save {}: {}", s.name(), err)
-                        }
-                    });
+                if let Some(prev) = s.last_at() {
+                    if prev < curr {
+                        println!("Source \"{}\" has updates!", s.url())
+                    }
                 }
-                _ => eprintln!("{}", "Cannot get list of sources".red()),
-            };
+
+                if let Err(err) = Source::repo()?.save(&s.with_last_checked_at(curr)) {
+                    eprintln!("Cannot save {}: {}", s.name(), err)
+                }
+            }
+            Ok(())
         }
         _ => unreachable!(),
     }
 }
 
-fn process_source<R: SourceRepository>(matches: &ArgMatches, repo: &mut R) {
+fn process_source(matches: &ArgMatches) -> Result<()> {
     match matches.subcommand() {
-        ("add", Some(matches)) => {
-            match repo.save(&Source::new(
-                matches.value_of("name").unwrap().into(),
-                matches.value_of("url").unwrap().into(),
-                matches.value_of("type").unwrap().into(),
-                matches.value_of("offset").unwrap().parse().unwrap(),
-            )) {
-                Ok(_) => println!("{}", "New source was added!".green()),
-                _ => eprintln!("{}", "Cannot add new source".red()),
-            }
-        }
-        ("list", Some(_)) => match repo.list() {
-            Ok(sources) => {
-                let mut table = Table::new();
+        ("add", Some(matches)) => Source::repo()?.save(&Source::new(
+            matches.value_of("name").unwrap().into(),
+            matches.value_of("url").unwrap().into(),
+            matches.value_of("type").unwrap().into(),
+            matches.value_of("datetime_format").unwrap().into(),
+            matches.value_of("offset").unwrap().parse().unwrap(),
+        )),
+        ("list", Some(_)) => {
+            let mut table = Table::new();
 
-                table.add_row(row![bFg => "NAME", "URL", "OFFSET", "TYPE", "CHECKED AT"]);
-                sources.for_each(|v| {
-                    table.add_row(row![
-                        v.name(),
-                        v.url(),
-                        v.offset(),
-                        v.typ(),
-                        match v.last_checked_at() {
-                            Some(date) => date.to_string(),
-                            None => String::new(),
-                        },
-                    ]);
-                });
-                table.printstd();
-            }
-            _ => eprintln!("{}", "Cannot get list of sources".red()),
-        },
-        ("show", Some(_)) => println!("Show of sources"),
-        ("update", Some(_)) => println!("Update of sources"),
-        ("delete", Some(_)) => println!("Delete of sources"),
+            table.add_row(row![bFg => "NAME", "URL", "OFFSET", "TYPE", "LAST AT"]);
+            Source::repo()?.list()?.iter().for_each(|v| {
+                table.add_row(row![
+                    v.name(),
+                    v.url(),
+                    v.offset(),
+                    v.typ(),
+                    match v.last_at() {
+                        Some(date) => date.to_string(),
+                        None => String::new(),
+                    },
+                ]);
+            });
+            table.printstd();
+            Ok(())
+        }
+        ("show", Some(_)) => {
+            println!("Show of sources");
+            Ok(())
+        }
+        ("update", Some(_)) => {
+            println!("Update of sources");
+            Ok(())
+        }
+        ("delete", Some(_)) => {
+            println!("Delete of sources");
+            Ok(())
+        }
         _ => unreachable!(),
     }
 }

@@ -3,13 +3,10 @@ extern crate prettytable;
 
 mod cli;
 mod domain;
-mod infrastructure;
+mod source;
 
-use crate::infrastructure::{ConnectionFactory, YamlSourceRepository};
+use eyre::Result;
 
-fn main() {
-    cli::process(
-        &mut YamlSourceRepository::new("./list.yml".into()),
-        ConnectionFactory {},
-    )
+fn main() -> Result<()> {
+    cli::process()
 }

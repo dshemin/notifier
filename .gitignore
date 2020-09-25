@@ -1,4 +1,3 @@
 /.idea
 /target
-/Settings.toml
-notifier.db
+/list.yml
