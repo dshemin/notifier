@@ -7,7 +7,8 @@ use serde::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Source {
     name: String,
-    url: String,
+    target_url: String,
+    check_url: String,
     typ: SourceType,
 
     /// Date time offset of the source.
@@ -21,14 +22,16 @@ pub struct Source {
 impl Source {
     pub fn new(
         name: String,
-        url: String,
+        target_url: String,
+        check_url: String,
         typ: SourceType,
         datetime_format: String,
         offset: i32,
     ) -> Source {
         Source {
             name,
-            url,
+            target_url,
+            check_url: check_url,
             typ,
             offset,
             datetime_format,
@@ -39,8 +42,11 @@ impl Source {
     pub fn name(&self) -> &String {
         &self.name
     }
-    pub fn url(&self) -> &String {
-        &self.url
+    pub fn target_url(&self) -> &String {
+        &self.target_url
+    }
+    pub fn check_url(&self) -> &String {
+        &self.check_url
     }
     pub fn typ(&self) -> &SourceType {
         &self.typ
@@ -58,7 +64,8 @@ impl Source {
     pub fn with_last_checked_at(&self, date: DateTime<Utc>) -> Source {
         Source {
             name: self.name.clone(),
-            url: self.url.clone(),
+            target_url: self.target_url.clone(),
+            check_url: self.check_url.clone(),
             typ: self.typ,
             offset: self.offset,
             datetime_format: self.datetime_format.clone(),

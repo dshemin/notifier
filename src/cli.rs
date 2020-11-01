@@ -20,7 +20,8 @@ pub fn process() -> Result<()> {
                         .setting(AppSettings::ArgRequiredElseHelp)
                         .args(&[
                             Arg::with_name("name").takes_value(true),
-                            Arg::with_name("url").takes_value(true),
+                            Arg::with_name("target_url").takes_value(true),
+                            Arg::with_name("check_url").takes_value(true),
                             Arg::with_name("type")
                                 .possible_values(&["rss", "html"])
                                 .takes_value(true),
@@ -39,13 +40,12 @@ pub fn process() -> Result<()> {
     match matches.subcommand() {
         ("source", Some(matches)) => process_source(matches),
         ("check", Some(_)) => {
-            // todo here we have to create repository twice 'cause for now I can't figure out that I should do with borrow and mutable borrow here
             for s in Source::repo()?.list()? {
                 let curr = get_last_update_date(s)?;
 
                 if let Some(prev) = s.last_at() {
                     if prev < curr {
-                        println!("Source \"{}\" has updates!", s.url())
+                        println!("Source \"{}\" has updates! Check it here {}", s.name(), s.target_url())
                     }
                 }
 
@@ -63,7 +63,8 @@ fn process_source(matches: &ArgMatches) -> Result<()> {
     match matches.subcommand() {
         ("add", Some(matches)) => Source::repo()?.save(&Source::new(
             matches.value_of("name").unwrap().into(),
-            matches.value_of("url").unwrap().into(),
+            matches.value_of("target_url").unwrap().into(),
+            matches.value_of("check_url").unwrap().into(),
             matches.value_of("type").unwrap().into(),
             matches.value_of("datetime_format").unwrap().into(),
             matches.value_of("offset").unwrap().parse().unwrap(),
@@ -75,7 +76,7 @@ fn process_source(matches: &ArgMatches) -> Result<()> {
             Source::repo()?.list()?.iter().for_each(|v| {
                 table.add_row(row![
                     v.name(),
-                    v.url(),
+                    v.check_url(),
                     v.offset(),
                     v.typ(),
                     match v.last_at() {
