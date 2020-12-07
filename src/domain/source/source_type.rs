@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::convert::From;
 
-#[derive(Serialize, Deserialize, Copy, Clone)]
+#[derive(Serialize, Deserialize, Copy, Clone, Debug)]
 #[serde(rename_all = "lowercase")]
 pub enum SourceType {
     RSS,

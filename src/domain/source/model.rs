@@ -4,7 +4,7 @@ use chrono::{DateTime, Utc};
 use eyre::Result;
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Source {
     name: String,
     target_url: String,
@@ -31,7 +31,7 @@ impl Source {
         Source {
             name,
             target_url,
-            check_url: check_url,
+            check_url,
             typ,
             offset,
             datetime_format,
